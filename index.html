@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Andar Bahar – Advanced Local Multiplayer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+.card{width:60px;height:90px;perspective:1000px}
+.inner{width:100%;height:100%;position:relative;transition:transform .6s;transform-style:preserve-3d}
+.card.flipped .inner{transform:rotateY(180deg)}
+.front,.back{position:absolute;inset:0;backface-visibility:hidden;border-radius:6px}
+.front{background:#fff}
+.back{background:#1e40af;transform:rotateY(180deg)}
+.deal{animation:deal .4s ease-out}
+@keyframes deal{from{transform:translateY(-30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.win{box-shadow:0 0 20px 6px gold}
+.chip{border-radius:9999px;padding:10px 14px;font-weight:bold;cursor:pointer}
+</style>
+</head>
+
+<body class="bg-green-700 text-white p-6">
+
+<audio id="dealSound" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+<audio id="flipSound" src="https://assets.mixkit.co/active_storage/sfx/2186/2186-preview.mp3"></audio>
+
+<div class="max-w-7xl mx-auto space-y-6">
+
+<h1 class="text-2xl font-bold text-center">ANDAR BAHAR (LOCAL MULTIPLAYER)</h1>
+
+<!-- CONTROLS -->
+<div class="flex justify-between items-center bg-black bg-opacity-40 p-4 rounded">
+  <div>
+    <label class="font-bold">
+      CUT POSITION:
+      <span id="cutVal">26</span>
+      <span id="cutStatus" class="text-red-400 ml-2">(MOVE REQUIRED)</span>
+    </label>
+    <input type="range" min="0" max="52" value="26" class="w-64"
+      oninput="updateCut(this.value)">
+  </div>
+
+  <button onclick="toggleSound()" class="bg-blue-500 px-4 py-2 rounded font-bold">
+    Sound: <span id="soundStatus">ON</span>
+  </button>
+</div>
+
+<!-- PLAYERS -->
+<div class="grid grid-cols-2 gap-6">
+
+<div class="bg-black bg-opacity-40 p-4 rounded">
+<h2 class="font-bold">Player 1</h2>
+<p>Balance: ₹<span id="bal1">10000</span></p>
+<div class="flex gap-2 my-2">
+<button class="chip bg-blue-500" onclick="setBet(1,50)">50</button>
+<button class="chip bg-blue-600" onclick="setBet(1,100)">100</button>
+<button class="chip bg-blue-700" onclick="setBet(1,200)">200</button>
+<button class="chip bg-blue-800" onclick="setBet(1,500)">500</button>
+</div>
+<div class="flex gap-2">
+<button class="bg-green-600 px-4 py-1 rounded" onclick="setChoice(1,'bahar')">BAHAR</button>
+<button class="bg-green-800 px-4 py-1 rounded" onclick="setChoice(1,'andar')">ANDAR</button>
+</div>
+<p>Bet: ₹<span id="bet1">0</span> | <span id="ch1">-</span></p>
+</div>
+
+<div class="bg-black bg-opacity-40 p-4 rounded">
+<h2 class="font-bold">Player 2</h2>
+<p>Balance: ₹<span id="bal2">10000</span></p>
+<div class="flex gap-2 my-2">
+<button class="chip bg-red-500" onclick="setBet(2,50)">50</button>
+<button class="chip bg-red-600" onclick="setBet(2,100)">100</button>
+<button class="chip bg-red-700" onclick="setBet(2,200)">200</button>
+<button class="chip bg-red-800" onclick="setBet(2,500)">500</button>
+</div>
+<div class="flex gap-2">
+<button class="bg-green-600 px-4 py-1 rounded" onclick="setChoice(2,'bahar')">BAHAR</button>
+<button class="bg-green-800 px-4 py-1 rounded" onclick="setChoice(2,'andar')">ANDAR</button>
+</div>
+<p>Bet: ₹<span id="bet2">0</span> | <span id="ch2">-</span></p>
+</div>
+
+</div>
+
+<div class="text-center">
+<button onclick="startGame()" class="bg-yellow-400 text-black px-10 py-3 rounded font-bold">
+SHUFFLE & DEAL
+</button>
+</div>
+
+<!-- DEALER -->
+<div class="flex justify-center">
+  <div id="dealerCard"></div>
+</div>
+
+<!-- TABLE -->
+<div class="grid grid-cols-2 gap-6">
+<div id="baharBox">
+<h3 class="font-bold">BAHAR</h3>
+<div id="bahar" class="flex flex-wrap gap-2 mt-2"></div>
+</div>
+<div id="andarBox">
+<h3 class="font-bold">ANDAR</h3>
+<div id="andar" class="flex flex-wrap gap-2 mt-2"></div>
+</div>
+</div>
+
+<!-- HISTORY -->
+<div class="bg-black bg-opacity-40 p-4 rounded">
+<h3 class="font-bold mb-2">History</h3>
+<ul id="history" class="text-sm space-y-1"></ul>
+</div>
+
+</div>
+
+<script>
+const suits=["♥","♦","♠","♣"];
+const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+let cutPos=26, cutMoved=false, round=0, soundOn=true;
+
+const dealSound=document.getElementById("dealSound");
+const flipSound=document.getElementById("flipSound");
+
+const players={
+1:{bet:0,choice:null,balance:10000},
+2:{bet:0,choice:null,balance:10000}
+};
+
+function toggleSound(){
+soundOn=!soundOn;
+soundStatus.innerText=soundOn?"ON":"OFF";
+}
+function playSound(s){ if(soundOn){s.currentTime=0;s.play();} }
+
+function updateCut(val){
+cutPos=Number(val);
+cutVal.innerText=val;
+cutMoved=true;
+cutStatus.innerText="READY";
+cutStatus.className="text-green-400 ml-2";
+}
+
+function setBet(id,a){players[id].bet=a;bet1.innerText=players[1].bet;bet2.innerText=players[2].bet;}
+function setChoice(id,c){players[id].choice=c;ch1.innerText=players[1].choice||"-";ch2.innerText=players[2].choice||"-";}
+
+function createDeck(){return suits.flatMap(s=>ranks.map(r=>({r,s})))}
+function shuffle(d){for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}}
+
+function cardHTML(c){
+const col=(c.s==="♥"||c.s==="♦")?"text-red-600":"text-black";
+return `<div class="card deal"><div class="inner">
+<div class="front ${col} p-1 flex flex-col justify-between">
+<span>${c.r}</span><span class="text-xl text-center">${c.s}</span>
+<span class="rotate-180 self-end">${c.r}</span>
+</div><div class="back"></div></div></div>`;
+}
+
+async function startGame(){
+if(!cutMoved){alert("You must CUT the deck before dealing");return;}
+if(!players[1].bet||!players[2].bet||!players[1].choice||!players[2].choice){
+alert("Both players must bet and choose");return;}
+
+cutMoved=false;
+cutStatus.innerText="MOVE REQUIRED";
+cutStatus.className="text-red-400 ml-2";
+
+bahar.innerHTML="";andar.innerHTML="";dealerCard.innerHTML="";
+baharBox.classList.remove("win");andarBox.classList.remove("win");
+
+let deck=createDeck();
+deck=[...deck.slice(cutPos),...deck.slice(0,cutPos)];
+shuffle(deck);
+
+const dealer=deck.shift();
+const dWrap=document.createElement("div");
+dWrap.innerHTML=cardHTML(dealer);
+const dCard=dWrap.firstElementChild;
+dealerCard.appendChild(dCard);
+setTimeout(()=>{dCard.classList.add("");playSound(flipSound)},300);
+
+let side="bahar";
+
+for(let c of deck){
+await new Promise(r=>setTimeout(r,500));
+playSound(dealSound);
+const wrap=document.createElement("div");
+wrap.innerHTML=cardHTML(c);
+const el=wrap.firstElementChild;
+document.getElementById(side).appendChild(el);
+setTimeout(()=>{el.classList.add("");playSound(flipSound)},150);
+
+if(c.r===dealer.r){
+round++;
+(side==="bahar"?baharBox:andarBox).classList.add("win");
+settle(side);
+history.innerHTML=
+`<li>#${round} → Winner: ${side.toUpperCase()} | Dealer: ${dealer.r}${dealer.s} | Cut: ${cutPos}</li>`+history.innerHTML;
+return;
+}
+side=side==="bahar"?"andar":"bahar";
+}
+}
+
+function settle(win){
+[1,2].forEach(id=>{
+players[id].balance+=players[id].choice===win?players[id].bet:-players[id].bet;
+document.getElementById("bal"+id).innerText=players[id].balance;
+});
+}
+</script>
+
+</body>
+</html>
