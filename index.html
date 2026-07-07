@@ -18,7 +18,7 @@
             overflow: hidden;
         }
 
-        /* Initial state of the text container (invisible) */
+        /* Initial state of the text/image container (invisible) */
         #message-container {
             font-size: 5rem;
             font-weight: bold;
@@ -36,6 +36,12 @@
         .heart {
             color: #ff4d4d;
         }
+
+        /* Controls the size of the animated GIF */
+        .kiss-gif {
+            width: 250px;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -45,22 +51,33 @@
     <script>
         const messageContainer = document.getElementById('message-container');
 
-        // Step 1: After 3 seconds (3000 milliseconds), show "Momo"
+        // Step 1: At 3 seconds, show "Momo"
         setTimeout(() => {
             messageContainer.innerHTML = "Momo";
             messageContainer.classList.add('show');
         }, 3000);
 
-        // Step 2: Fade the text out half a second before the next word appears
+        // Step 2: Fade out "Momo" at 5.5 seconds
         setTimeout(() => {
             messageContainer.classList.remove('show');
         }, 5500);
 
-        // Step 3: After 6 seconds total (3 seconds after Momo), show "I Love You"
+        // Step 3: At 6 seconds, show "I Love You"
         setTimeout(() => {
             messageContainer.innerHTML = "I Love You <span class='heart'>❤</span>";
             messageContainer.classList.add('show');
         }, 6000);
+
+        // Step 4: Fade out "I Love You" 5 seconds later (at 10.5 seconds total)
+        setTimeout(() => {
+            messageContainer.classList.remove('show');
+        }, 10500);
+
+        // Step 5: At 11 seconds total, show the animated kiss GIF
+        setTimeout(() => {
+            messageContainer.innerHTML = "<img src='https://fonts.gstatic.com/s/e/notoemoji/latest/1f618/512.gif' alt='Kiss' class='kiss-gif'>";
+            messageContainer.classList.add('show');
+        }, 11000);
     </script>
 
 </body>
